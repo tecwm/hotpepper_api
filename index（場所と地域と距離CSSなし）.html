@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>店舗検索デモ</title>
+</head>
+<body>
+  <h1>店舗検索デモ</h1>
+
+  <!-- 現在地表示 -->
+  <div id="location-info" style="text-align: center; margin-bottom: 20px;"></div>
+
+  <!-- 総件数表示 -->
+  <div id="total-results" style="text-align: center; margin-bottom: 20px;"></div>
+
+  <!-- 検索フォーム -->
+  <div class="search-form" style="text-align: center;">
+    <input type="text" id="area-keyword" placeholder="検索する地域を入力（例：池袋）" />
+    <select id="genre-select">
+      <option value="">ジャンルを選択</option>
+      <option value="G001">居酒屋</option>
+      <option value="G013">ラーメン</option>
+      <option value="G004">和食</option>
+      <option value="G006">イタリアン</option>
+    </select>
+    <button onclick="searchShops()">検索</button>
+  </div>
+
+  <div id="loading" style="text-align: center;">データ取得中...</div>
+  <div id="shop-list"></div>
+
+  <script>
+    const API_KEY = "ab77144022a8b23d"; // 実際のAPIキーを入力してください
+    const API_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
+
+    let userLatitude = null;
+    let userLongitude = null;
+
+    // ハーサイン距離の計算（キロメートル単位）
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // 地球の半径（キロメートル）
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      return distance.toFixed(2); // 距離を小数点以下2桁で返す
+    }
+
+    async function fetchShopData(keyword, genre) {
+      const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`${API_URL}?key=${API_KEY}&format=json&keyword=${encodeURIComponent(keyword)}&genre=${genre}&count=100`)}`
+    
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        const data = await response.json();
+
+        const shopListDiv = document.getElementById("shop-list");
+        const loadingDiv = document.getElementById("loading");
+        loadingDiv.style.display = 'none'; // ローディングメッセージを非表示
+
+        const totalResultsDiv = document.getElementById("total-results");
+        if (data.results && data.results.shop) {
+          // 総件数を表示
+          totalResultsDiv.innerHTML = `総件数: ${data.results.results_available}件`;
+
+          // 距離で並べ替え
+          data.results.shop.forEach(shop => {
+            shop.distance = calculateDistance(userLatitude, userLongitude, shop.lat, shop.lng); // 距離を計算
+          });
+
+          data.results.shop.sort((a, b) => a.distance - b.distance);
+
+          shopListDiv.innerHTML = ""; // 前回の結果をクリア
+          data.results.shop.forEach(shop => {
+            const shopDiv = document.createElement("div");
+            shopDiv.innerHTML = `
+              <h2>${shop.name}</h2>
+              <p>住所: ${shop.address}</p>
+              <p>距離: ${shop.distance} km</p>
+              <p><a href="${shop.urls.pc}" target="_blank">店舗情報を見る</a></p>
+            `;
+            shopListDiv.appendChild(shopDiv);
+          });
+        } else {
+          shopListDiv.innerHTML = "該当する店舗がありません。";
+          totalResultsDiv.innerHTML = ""; // 該当がなければ総件数表示を削除
+        }
+      } catch (error) {
+        console.error("データ取得エラー:", error.message);
+        const loadingDiv = document.getElementById("loading");
+        loadingDiv.innerHTML = "データ取得に失敗しました。もう一度お試しください。";
+      }
+    }
+
+    function searchShops() {
+      const keyword = document.getElementById("area-keyword").value.trim();
+      const genre = document.getElementById("genre-select").value;
+      if (keyword && genre && userLatitude !== null && userLongitude !== null) {
+        document.getElementById("shop-list").innerHTML = ""; // 前回の結果をクリア
+        document.getElementById("loading").style.display = "block"; // ローディングメッセージを表示
+        fetchShopData(keyword, genre);
+      } else {
+      }
+    }
+
+    // 現在地を取得する関数
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            document.getElementById("location-info").innerHTML = `現在地: 緯度 ${userLatitude.toFixed(6)}, 経度 ${userLongitude.toFixed(6)}`;
+            searchShops();  // 現在地取得後に店舗検索
+          },
+          function () {
+            alert("位置情報の取得に失敗しました。位置情報を有効にしてください。");
+          }
+        );
+      } else {
+        alert("このブラウザは位置情報に対応していません。");
+      }
+    }
+
+    // ページ読み込み時に現在地を取得
+    window.onload = function () {
+      getUserLocation();
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>最寄りのお店検索</title>
+  <style>
+    /* ベースのスタイル */
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #FFFAF0; /* 薄いオレンジ背景 */
+      color: #4A4A4A;
+    }
+
+    h1 {
+      text-align: center;
+      color: #D45A47; /* 暖色系の赤み */
+      font-size: 24px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    #location-info, #total-results, #location-map {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 10px;   
+    }
+
+    /* 検索フォーム */
+    .search-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+    }
+
+    .search-form input,
+    .search-form select,
+    .search-form button {
+      font-size: 16px;
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #FF7043;
+      width: 90%;
+      max-width: 500px;
+    height:50px;
+    }
+
+    .search-form input,
+    .search-form select {
+      width: 80%;
+    }
+
+    .search-form button {
+      background-color: #FF7043; /* 暖色系オレンジ */
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+
+    .search-form button:hover {
+      background-color: #D45A47; /* 暖色系赤み */
+    }
+
+    /* ローディング表示 */
+    #loading {
+      text-align: center;
+      font-size: 18px;
+      color: #FF7043;
+      display: none;
+    }
+
+    /* 店舗リスト */
+    #shop-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+      padding: 10px;
+    }
+
+    .shop-item {
+      display: flex;
+      flex-direction: row;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin: 10px 0;
+      padding: 15px;
+      width: 90%;
+      max-width: 500px;
+      transition: transform 0.3s ease;
+      align-items: flex-start;
+    }
+
+    .shop-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .shop-item img {
+width: 200px;
+      border-radius: 8px;
+      margin-right: 15px;  /* 右側の店舗情報との間隔 */
+    }
+
+    .shop-item div {
+      flex: 1;
+    }
+
+    .shop-item h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #D45A47;
+    }
+
+    .shop-item p {
+      margin: 5px 0;
+      font-size: 14px;
+      color: #4A4A4A;
+    }
+
+    .shop-item a {
+      color: #FF7043;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .shop-item a:hover {
+      text-decoration: underline;
+    }
+
+    .shop-item .hours {
+      font-size: 14px;
+      margin-top: 10px;
+      color: #FF7043; /* 営業時間部分の色 */
+    }
+
+    /* ページネーション */
+    .pagination {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .pagination button {
+      padding: 10px 15px;
+      margin: 5px;
+      border: none;
+      background-color: #FF7043;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .pagination button:disabled {
+      background-color: #ddd;
+      cursor: not-allowed;
+    }
+
+    /* レスポンシブデザイン */
+    @media screen and (max-width: 768px) {
+      h1 {
+        font-size: 20px;
+      }
+
+      .search-form input,
+      .search-form select,
+      .search-form button {
+        width: 80%;
+      }
+
+      .shop-item {
+        width: 100%;
+        flex-direction: column;
+        margin: 10px;
+      }
+
+      .shop-item img {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      .pagination button {
+        font-size: 14px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <h1>最寄りのお店検索</h1>
+
+  <!-- 現在地表示 -->
+  <div id="location-map"></div>
+  <div id="location-info"></div>
+
+  <!-- 検索フォーム -->
+  <div class="search-form">
+    <input type="text" id="area-keyword" placeholder="キーワードや検索する地域を入力（例：池袋）" required>
+    <select id="genre-select">
+      <option value=" ">ジャンルを選択(全てのジャンル)      
+      </option>
+      <option value="G001">居酒屋</option>
+      <option value="G013">ラーメン</option>
+      <option value="G004">和食</option>
+      <option value="G006">イタリアン</option>
+    </select>
+    <button onclick="searchShops()">検索</button>
+  </div>
+  
+  <!-- 総件数表示 -->
+  <div id="total-results"></div>
+  <div id="loading">データを取得中...今しばらくお待ちください。</div>
+  <div id="shop-list"></div>
+  <div id="pagination" class="pagination"></div>
+
+  <script>
+    const API_KEY = "ab77144022a8b23d"; // APIキー
+    const API_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";// URL
+
+    let userLatitude = null;
+    let userLongitude = null;
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // 地球の半径（キロメートル）
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      return distance.toFixed(2);
+    }
+
+    async function fetchShopData(keyword, genre) {
+      const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`${API_URL}?key=${API_KEY}&format=json&keyword=${encodeURIComponent(keyword)}&genre=${genre}&count=100`)}`
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        const data = await response.json();
+
+        const shopListDiv = document.getElementById("shop-list");
+        const loadingDiv = document.getElementById("loading");
+        loadingDiv.style.display = 'none';
+
+        const totalResultsDiv = document.getElementById("total-results");
+        if (data.results && data.results.shop) {
+          totalResultsDiv.innerHTML = `総件数: ${data.results.results_available}件`;
+
+          data.results.shop.forEach(shop => {
+            shop.distance = calculateDistance(userLatitude, userLongitude, shop.lat, shop.lng);
+          });
+
+          data.results.shop.sort((a, b) => a.distance - b.distance);
+
+          shopListDiv.innerHTML = "";
+          data.results.shop.forEach(shop => {
+            const shopDiv = document.createElement("div");
+            shopDiv.classList.add("shop-item");
+
+            // 店舗画像があれば表示
+            const imageUrl = shop.photo && shop.photo.pc ? shop.photo.pc.l : "default-image.jpg"; // デフォルト画像
+
+            shopDiv.innerHTML = `
+              <img src="${imageUrl}" alt="${shop.name}" />
+              <div>
+                <h2>${shop.name}</h2>
+                <p>住所: ${shop.address}</p>
+                <p>距離: ${shop.distance} km</p>
+                <p class="hours">営業時間: ${shop.open || "不明"}</p>
+                <p>【<a href="${shop.urls.pc}" target="_blank">店舗情報を見る</a>】</p>
+              </div>
+            `;
+            shopListDiv.appendChild(shopDiv);
+          });
+        } else {
+          shopListDiv.innerHTML = "該当する店舗がありません。";
+          totalResultsDiv.innerHTML = "";
+        }
+      } catch (error) {
+        console.error("データ取得エラー:", error.message);
+        const loadingDiv = document.getElementById("loading");
+        loadingDiv.innerHTML = "データ取得に失敗しました。もう一度お試しください。";
+      }
+    }
+
+    function searchShops() {
+      const keyword = document.getElementById("area-keyword").value.trim();
+      const genre = document.getElementById("genre-select").value;
+      if (keyword && genre && userLatitude !== null && userLongitude !== null) {
+        document.getElementById("shop-list").innerHTML = "";
+        document.getElementById("loading").style.display = "block";
+        fetchShopData(keyword, genre);
+      }
+    }
+
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            document.getElementById("location-info").innerHTML = `大まかな現在地: 緯度 ${userLatitude.toFixed(6)}, 経度 ${userLongitude.toFixed(6)}`;
+            searchShops();     
+            document.getElementById("location-map").innerHTML = `<iframe
+    src="https://www.google.com/maps?q=${userLatitude.toFixed(6)},${userLongitude.toFixed(6)}&hl=ja&z=17&t=h&output=embed"
+    width="600"
+    height="450"
+    style="border:0;"
+    allowfullscreen=""
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade">
+  </iframe>     
+`;
+          },
+          function () {
+            alert("位置情報の取得に失敗しました。位置情報を有効にしてください。");
+          }
+        );
+      } else {
+        alert("このブラウザは位置情報に対応していません。");
+      }
+    }
+
+    window.onload = function () {
+      getUserLocation();
+    };
+  </script>
+</body>
+</html>

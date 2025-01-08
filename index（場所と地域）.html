@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>店舗検索デモ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .search-form {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .shop-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .shop-item {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+    .shop-item:hover {
+      transform: scale(1.05);
+    }
+    .shop-item h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #007BFF;
+    }
+    .shop-item p {
+      margin: 10px 0;
+      color: #555;
+    }
+    .shop-item a {
+      color: #007BFF;
+      text-decoration: none;
+    }
+    .shop-item a:hover {
+      text-decoration: underline;
+    }
+    .loading {
+      text-align: center;
+      color: #555;
+      font-size: 18px;
+    }
+    .pagination {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .pagination button {
+      padding: 10px 15px;
+      font-size: 16px;
+      margin: 5px;
+      cursor: pointer;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    .pagination button:disabled {
+      background-color: #ddd;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>店舗検索デモ</h1>
+
+  <!-- 検索フォーム -->
+  <div class="search-form">
+    <input type="text" id="area-keyword" placeholder="検索する地域を入力（例：池袋）" />
+    <select id="genre-select">
+      <option value="">ジャンルを選択</option>
+      <option value="G001">居酒屋</option>
+      <option value="G013">ラーメン</option>
+      <option value="G004">和食</option>
+      <option value="G006">イタリアン</option>
+    </select>
+    <button onclick="searchShops()">検索</button>
+  </div>
+
+  <div class="loading" id="loading">データ取得中...</div>
+  <div class="shop-list" id="shop-list"></div>
+  <div id="pagination" class="pagination"></div>
+
+  <script>
+    //APIキーを入力
+    const API_KEY = "ab77144022a8b23d"; // 実際のAPIキーを入力してください
+    //リクエストURL
+    const API_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/"; // 実際のAPI URLを入力してください
+
+    let currentPage = 1;
+    let totalResults = 0;
+    let totalPages = 0;
+
+    async function fetchShopData(keyword, genre, page) {
+        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`${API_URL}?key=${API_KEY}&format=json&keyword=${encodeURIComponent(keyword)}&genre=${genre}&count=5&page=${page}`)}`;
+    
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTPエラー: ${response.status}`);
+            }
+            const data = await response.json();
+            //コンソールにAPIから取得した情報を表示する
+            console.log(data);  // APIから取得したデータをコンソールに表示
+            
+            // 取得したデータを画面に表示
+            const shopListDiv = document.getElementById("shop-list");
+            const loadingDiv = document.getElementById("loading");
+            loadingDiv.style.display = 'none'; // ローディングメッセージを非表示
+
+            if (data.results && data.results.shop) {
+                totalResults = data.results.results_available;
+                totalPages = Math.ceil(totalResults / 5);
+
+                shopListDiv.innerHTML = ""; // 前回の結果をクリア
+                data.results.shop.forEach(shop => {
+                    const shopDiv = document.createElement("div");
+                    shopDiv.classList.add("shop-item");
+                    shopDiv.innerHTML = `
+                      <h2>${shop.name}</h2>
+                      <p>住所: ${shop.address}</p>
+                      <p><a href="${shop.urls.pc}" target="_blank">店舗情報を見る</a></p>
+                    `;
+                    shopListDiv.appendChild(shopDiv);
+                });
+
+                updatePagination();
+            } else {
+                shopListDiv.innerHTML = "該当する店舗がありません。";
+                totalResults = 0;
+                totalPages = 0;
+                updatePagination();
+            }
+        } catch (error) {
+            console.error("データ取得エラー:", error.message);
+            const loadingDiv = document.getElementById("loading");
+            loadingDiv.innerHTML = "データ取得に失敗しました。もう一度お試しください。";
+        }
+    }
+
+    function updatePagination() {
+      const paginationDiv = document.getElementById("pagination");
+      paginationDiv.innerHTML = `
+        <span>総件数: ${totalResults}件</span>
+        <br>
+        <button ${currentPage <= 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">前へ</button>
+        <span>ページ ${currentPage} / ${totalPages}</span>
+        <button ${currentPage >= totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">次へ</button>
+      `;
+    }
+
+    function changePage(page) {
+      if (page < 1 || page > totalPages) return;
+      currentPage = page;
+      fetchShopData(document.getElementById("area-keyword").value.trim(), document.getElementById("genre-select").value, currentPage);
+    }
+
+    function searchShops() {
+      const keyword = document.getElementById("area-keyword").value.trim();
+      const genre = document.getElementById("genre-select").value;
+      if (keyword && genre) {
+        currentPage = 1;  // ページをリセット
+        document.getElementById("shop-list").innerHTML = ""; // 前回の結果をクリア
+        document.getElementById("loading").style.display = "block"; // ローディングメッセージを表示
+        fetchShopData(keyword, genre, currentPage);
+      } else {
+        alert("地域キーワードとジャンルを選択してください");
+      }
+    }
+
+  </script>
+</body>
+</html>

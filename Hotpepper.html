@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>最寄りのお店検索</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #FFFAF0;
+      color: #4A4A4A;
+    }
+
+    h1 {
+      text-align: center;
+      color: #D45A47;
+      font-size: 24px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    #location-info, #total-results, #location-map {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 10px;   
+    }
+
+    .search-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+    }
+
+    .search-form input {
+      font-size: 16px;
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #FF7043;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .genre-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .genre-buttons img {
+      width: 150px;
+      cursor: pointer;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+      opacity: 0.5; /* デフォルトで非活性状態を表現 */
+      pointer-events: none; /* クリックを無効化 */
+    }
+
+
+    .genre-buttons img.enabled {
+      opacity: 1; /* 活性化された場合に通常表示 */
+      pointer-events: auto; /* クリックを有効化 */
+    }
+
+
+
+
+    .genre-buttons img:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    /* 選択された画像のスタイル */
+    .selected {
+      border: 4px solid #FF7043;
+      background-color: #FFECD1;
+      transform: scale(1.1); /* 選択時に少し拡大 */
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    #loading {
+      text-align: center;
+      font-size: 18px;
+      color: #FF7043;
+      display: none;
+    }
+
+    #shop-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+      padding: 10px;
+    }
+
+    .shop-item {
+      display: flex;
+      flex-direction: row;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin: 10px 0;
+      padding: 15px;
+      width: 90%;
+      max-width: 500px;
+      align-items: flex-start;
+    }
+
+    .shop-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .shop-item img {
+      width: 200px;
+      border-radius: 8px;
+      margin-right: 15px;
+    }
+
+    .shop-item div {
+      flex: 1;
+    }
+
+    .shop-item h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #D45A47;
+    }
+
+    .shop-item p {
+      margin: 5px 0;
+      font-size: 14px;
+      color: #4A4A4A;
+    }
+
+    .shop-item a {
+      color: #FF7043;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .shop-item a:hover {
+      text-decoration: underline;
+    }
+
+    .shop-item .hours {
+      font-size: 14px;
+      margin-top: 10px;
+      color: #FF7043;
+    }
+
+    .credit {
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>最寄りのお店検索</h1>
+  <div id="location-map"></div>
+  <div id="location-info"></div>
+
+  <div class="search-form">
+    <input type="text" id="area-keyword" placeholder="キーワードや検索する地域を入力（例：池袋）" oninput="toggleGenreButtons()" required>
+  </div>
+
+  <div class="genre-buttons">
+    <img src="img/all.png" alt="全て" onclick="selectGenre(this, ' ')" />
+    <img src="img/izakaya.png" alt="居酒屋" onclick="selectGenre(this, 'G001')" />
+    <img src="img/ramen.png" alt="ラーメン" onclick="selectGenre(this, 'G013')" />
+    <img src="img/washoku.png" alt="和食" onclick="selectGenre(this, 'G004')" />
+    <img src="img/italian.png" alt="イタリアン" onclick="selectGenre(this, 'G006')" />
+  </div>
+
+  <div id="total-results"></div>
+  <div id="loading">データを取得中...今しばらくお待ちください。</div>
+  <div id="shop-list"></div>
+  <div class="credit">Powered by <a href="http://webservice.recruit.co.jp/">ホットペッパーグルメ Webサービス</a></div>
+
+  <script>
+    const API_KEY = "ab77144022a8b23d";
+    const API_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
+
+    let selectedGenre = "";
+    let userLatitude = null;
+    let userLongitude = null;
+
+
+
+function toggleGenreButtons() {
+  const keyword = document.getElementById("area-keyword").value.trim();
+  const buttons = document.querySelectorAll('.genre-buttons img');
+
+  if (keyword) {
+    // キーワードが入力されていればボタンを有効化
+    buttons.forEach(button => button.classList.add('enabled'));
+  } else {
+    // キーワードが空ならボタンを無効化
+    buttons.forEach(button => button.classList.remove('enabled'));
+  }
+}
+
+function selectGenre(element, genre) {
+  if (!document.getElementById("area-keyword").value.trim()) {
+    alert("キーワードを入力してください！");
+    return;
+  }
+
+  // 全ての画像の選択状態をリセット
+  document.querySelectorAll('.genre-buttons img').forEach(img => {
+    img.classList.remove('selected');
+  });
+
+  // クリックされた画像を選択状態にする
+  element.classList.add('selected');
+
+  // ジャンルをセットして検索
+  selectedGenre = genre;
+  alert(`選択されたジャンル: ${genre}`); // 確認用（削除可）
+}
+    
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      return distance.toFixed(2);
+    }
+
+    function selectGenre(element, genre) {
+      // 全ての画像の選択状態をリセット
+      document.querySelectorAll('.genre-buttons img').forEach(img => {
+        img.classList.remove('selected');
+      });
+
+      // クリックされた画像を選択状態にする
+      element.classList.add('selected');
+
+      // ジャンルをセットして検索
+      selectedGenre = genre;
+      searchShops();
+    }
+
+    async function fetchShopData(keyword, genre) {
+      const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`${API_URL}?key=${API_KEY}&format=json&keyword=${encodeURIComponent(keyword)}&genre=${genre}&count=100`)}`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+        const data = await response.json();
+
+        const shopListDiv = document.getElementById("shop-list");
+        document.getElementById("loading").style.display = 'none';
+
+        if (data.results && data.results.shop) {
+          shopListDiv.innerHTML = "";
+          data.results.shop.forEach(shop => {
+            const shopDistance = calculateDistance(userLatitude, userLongitude, parseFloat(shop.lat), parseFloat(shop.lng));
+            const shopDiv = document.createElement("div");
+            shopDiv.classList.add("shop-item");
+
+            const imageUrl = shop.photo && shop.photo.pc ? shop.photo.pc.l : "default-image.jpg";
+            shopDiv.innerHTML = `
+              <img src="${imageUrl}" alt="${shop.name}" />
+              <div>
+                <h2>${shop.name}</h2>
+                <p>住所: ${shop.address}</p>
+                <p>お店までの距離: ${shopDistance} km</p>
+                <p class="hours">営業時間: ${shop.open || "不明"}</p>
+                <p><a href="${shop.urls.pc}" target="_blank">店舗情報を見る</a></p>
+              </div>
+            `;
+            shopListDiv.appendChild(shopDiv);
+          });
+        } else {
+          shopListDiv.innerHTML = "該当する店舗がありません。";
+        }
+      } catch (error) {
+        console.error("データ取得エラー:", error.message);
+        document.getElementById("loading").innerHTML = "データ取得に失敗しました。もう一度お試しください。";
+      }
+    }
+
+    function searchShops() {
+      const keyword = document.getElementById("area-keyword").value.trim();
+      if (keyword && selectedGenre) {
+        document.getElementById("shop-list").innerHTML = "";
+        document.getElementById("loading").style.display = "block";
+        fetchShopData(keyword, selectedGenre);
+      } else {
+  //      alert("キーワードまたはジャンルを選択してください！");
+      }
+    }
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            userLatitude = position.coords.latitude;
+            userLongitude = position.coords.longitude;
+            document.getElementById("location-info").innerHTML = `大まかな現在地: 緯度 ${userLatitude.toFixed(6)}, 経度 ${userLongitude.toFixed(6)}`;
+            searchShops();     
+            document.getElementById("location-map").innerHTML = `<iframe
+    src="https://www.google.com/maps?q=${userLatitude.toFixed(6)},${userLongitude.toFixed(6)}&hl=ja&z=17&t=h&output=embed"
+    width="600"
+    height="450"
+    style="border:0;"
+    allowfullscreen=""
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade">
+  </iframe>     
+`;
+          },
+          function () {
+            alert("位置情報の取得に失敗しました。位置情報を有効にしてください。");
+          }
+        );
+      } else {
+        alert("このブラウザは位置情報に対応していません。");
+      }
+    }
+
+    window.onload = function () {
+      getUserLocation();
+    };
+  </script>
+</body>
+</html>
