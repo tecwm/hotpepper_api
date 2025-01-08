@@ -171,13 +171,14 @@
   </div>
 
   <div class="genre-buttons">
-    <img src="img/all.png" alt="全て" onclick="selectGenre(this, ' ')" />
-    <img src="img/izakaya.png" alt="居酒屋" onclick="selectGenre(this, 'G001')" />
-    <img src="img/ramen.png" alt="ラーメン" onclick="selectGenre(this, 'G013')" />
-    <img src="img/washoku.png" alt="和食" onclick="selectGenre(this, 'G004')" />
-    <img src="img/italian.png" alt="イタリアン" onclick="selectGenre(this, 'G006')" />
+   
+    <img src="img/izakaya.png" alt="居酒屋" onclick="selectGenre(this, 'G001')" >
+    <img src="img/ramen.png" alt="ラーメン" onclick="selectGenre(this, 'G013')" >
+    <img src="img/washoku.png" alt="和食" onclick="selectGenre(this, 'G004')" >
+    <img src="img/italian.png" alt="イタリアン" onclick="selectGenre(this, 'G006')" >
+    <img src="img/all.png" alt="全て" onclick="selectGenre(this, ' ')" >
   </div>
-
+<br>
   <div id="total-results"></div>
   <div id="loading">データを取得中...今しばらくお待ちください。</div>
   <div id="shop-list"></div>
@@ -206,26 +207,7 @@ function toggleGenreButtons() {
   }
 }
 
-function selectGenre(element, genre) {
-  if (!document.getElementById("area-keyword").value.trim()) {
-    alert("キーワードを入力してください！");
-    return;
-  }
-
-  // 全ての画像の選択状態をリセット
-  document.querySelectorAll('.genre-buttons img').forEach(img => {
-    img.classList.remove('selected');
-  });
-
-  // クリックされた画像を選択状態にする
-  element.classList.add('selected');
-
-  // ジャンルをセットして検索
-  selectedGenre = genre;
-  alert(`選択されたジャンル: ${genre}`); // 確認用（削除可）
-}
-    
-
+let selectedGenreName ="";
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371;
       const φ1 = lat1 * Math.PI / 180;
@@ -253,6 +235,18 @@ function selectGenre(element, genre) {
 
       // ジャンルをセットして検索
       selectedGenre = genre;
+
+     selectedGenreName = element.alt;
+   
+
+
+
+
+
+
+
+
+
       searchShops();
     }
 
@@ -265,6 +259,21 @@ function selectGenre(element, genre) {
 
         const shopListDiv = document.getElementById("shop-list");
         document.getElementById("loading").style.display = 'none';
+
+
+  // 件数表示
+
+        const totalResultsDiv = document.getElementById("total-results");
+        if (data.results && data.results.shop) {
+          totalResultsDiv.innerHTML = `総件数: ${data.results.results_available}件 【 選択ジャンル：${selectedGenreName} 】`;
+        }
+
+        data.results.shop.forEach(shop => {
+            shop.distance = calculateDistance(userLatitude, userLongitude, shop.lat, shop.lng);
+          });
+
+          data.results.shop.sort((a, b) => a.distance - b.distance);
+        
 
         if (data.results && data.results.shop) {
           shopListDiv.innerHTML = "";
@@ -314,14 +323,14 @@ function selectGenre(element, genre) {
             document.getElementById("location-info").innerHTML = `大まかな現在地: 緯度 ${userLatitude.toFixed(6)}, 経度 ${userLongitude.toFixed(6)}`;
             searchShops();     
             document.getElementById("location-map").innerHTML = `<iframe
-    src="https://www.google.com/maps?q=${userLatitude.toFixed(6)},${userLongitude.toFixed(6)}&hl=ja&z=17&t=h&output=embed"
-    width="600"
-    height="450"
-    style="border:0;"
-    allowfullscreen=""
-    loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade">
-  </iframe>     
+            src="https://www.google.com/maps?q=${userLatitude.toFixed(6)},${userLongitude.toFixed(6)}&hl=ja&z=17&t=h&output=embed"
+            width="600"
+            height="450"
+            style="border:0;"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade">
+            </iframe>     
 `;
           },
           function () {
