@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,11 +22,15 @@
       font-weight: bold;
     }
 
-    #location-info, #total-results, #location-map {
+    #location-info,
+    #total-results,
+    #location-map {
       text-align: center;
       font-size: 16px;
-      margin-bottom: 10px;   
+      margin-bottom: 10px;
     }
+
+
 
     .search-form {
       display: flex;
@@ -58,14 +63,18 @@
       border-radius: 10px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       transition: transform 0.3s, box-shadow 0.3s;
-      opacity: 0.5; /* デフォルトで非活性状態を表現 */
-      pointer-events: none; /* クリックを無効化 */
+      opacity: 0.5;
+      /* デフォルトで非活性状態を表現 */
+      pointer-events: none;
+      /* クリックを無効化 */
     }
 
 
     .genre-buttons img.enabled {
-      opacity: 1; /* 活性化された場合に通常表示 */
-      pointer-events: auto; /* クリックを有効化 */
+      opacity: 1;
+      /* 活性化された場合に通常表示 */
+      pointer-events: auto;
+      /* クリックを有効化 */
     }
 
 
@@ -80,7 +89,8 @@
     .selected {
       border: 4px solid #FF7043;
       background-color: #FFECD1;
-      transform: scale(1.1); /* 選択時に少し拡大 */
+      transform: scale(1.1);
+      /* 選択時に少し拡大 */
       box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
     }
 
@@ -159,11 +169,23 @@
       text-align: center;
       margin-top: 20px;
     }
+
+    .mapiframe {
+      width: 80%;
+      aspect-ratio: 16 / 9;
+      margin: 0 auto;
+    }
+
+    .mapiframe iframe {
+      width: 100%;
+    }
   </style>
 </head>
+
 <body>
   <h1>最寄りのお店検索</h1>
-  <div id="location-map"></div>
+
+  <div id="location-map" class="mapiframe"></div>
   <div id="location-info"></div>
 
   <div class="search-form">
@@ -171,17 +193,19 @@
   </div>
 
   <div class="genre-buttons">
-   
-    <img src="img/izakaya.png" alt="居酒屋" onclick="selectGenre(this, 'G001')" >
-    <img src="img/ramen.png" alt="ラーメン" onclick="selectGenre(this, 'G013')" >
-    <img src="img/washoku.png" alt="和食" onclick="selectGenre(this, 'G004')" >
-    <img src="img/italian.png" alt="イタリアン" onclick="selectGenre(this, 'G006')" >
-    <img src="img/all.png" alt="全て" onclick="selectGenre(this, ' ')" >
+
+    <img src="img/izakaya.png" alt="居酒屋" onclick="selectGenre(this, 'G001')">
+    <img src="img/ramen.png" alt="ラーメン" onclick="selectGenre(this, 'G013')">
+    <img src="img/washoku.png" alt="和食" onclick="selectGenre(this, 'G004')">
+    <img src="img/italian.png" alt="イタリアン" onclick="selectGenre(this, 'G006')">
+    <img src="img/all.png" alt="全て" onclick="selectGenre(this, ' ')">
   </div>
-<br>
+  <br>
   <div id="total-results"></div>
   <div id="loading">データを取得中...今しばらくお待ちください。</div>
   <div id="shop-list"></div>
+
+
   <div class="credit">Powered by <a href="http://webservice.recruit.co.jp/">ホットペッパーグルメ Webサービス</a></div>
 
   <script>
@@ -194,20 +218,20 @@
 
 
 
-function toggleGenreButtons() {
-  const keyword = document.getElementById("area-keyword").value.trim();
-  const buttons = document.querySelectorAll('.genre-buttons img');
+    function toggleGenreButtons() {
+      const keyword = document.getElementById("area-keyword").value.trim();
+      const buttons = document.querySelectorAll('.genre-buttons img');
 
-  if (keyword) {
-    // キーワードが入力されていればボタンを有効化
-    buttons.forEach(button => button.classList.add('enabled'));
-  } else {
-    // キーワードが空ならボタンを無効化
-    buttons.forEach(button => button.classList.remove('enabled'));
-  }
-}
+      if (keyword) {
+        // キーワードが入力されていればボタンを有効化
+        buttons.forEach(button => button.classList.add('enabled'));
+      } else {
+        // キーワードが空ならボタンを無効化
+        buttons.forEach(button => button.classList.remove('enabled'));
+      }
+    }
 
-let selectedGenreName ="";
+    let selectedGenreName = "";
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 6371;
       const φ1 = lat1 * Math.PI / 180;
@@ -216,8 +240,8 @@ let selectedGenreName ="";
       const Δλ = (lon2 - lon1) * Math.PI / 180;
 
       const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c;
 
@@ -236,8 +260,8 @@ let selectedGenreName ="";
       // ジャンルをセットして検索
       selectedGenre = genre;
 
-     selectedGenreName = element.alt;
-   
+      selectedGenreName = element.alt;
+
 
 
 
@@ -261,7 +285,7 @@ let selectedGenreName ="";
         document.getElementById("loading").style.display = 'none';
 
 
-  // 件数表示
+        // 件数表示
 
         const totalResultsDiv = document.getElementById("total-results");
         if (data.results && data.results.shop) {
@@ -269,11 +293,11 @@ let selectedGenreName ="";
         }
 
         data.results.shop.forEach(shop => {
-            shop.distance = calculateDistance(userLatitude, userLongitude, shop.lat, shop.lng);
-          });
+          shop.distance = calculateDistance(userLatitude, userLongitude, shop.lat, shop.lng);
+        });
 
-          data.results.shop.sort((a, b) => a.distance - b.distance);
-        
+        data.results.shop.sort((a, b) => a.distance - b.distance);
+
 
         if (data.results && data.results.shop) {
           shopListDiv.innerHTML = "";
@@ -311,7 +335,7 @@ let selectedGenreName ="";
         document.getElementById("loading").style.display = "block";
         fetchShopData(keyword, selectedGenre);
       } else {
-  //      alert("キーワードまたはジャンルを選択してください！");
+        //      alert("キーワードまたはジャンルを選択してください！");
       }
     }
     function getUserLocation() {
@@ -321,7 +345,7 @@ let selectedGenreName ="";
             userLatitude = position.coords.latitude;
             userLongitude = position.coords.longitude;
             document.getElementById("location-info").innerHTML = `大まかな現在地: 緯度 ${userLatitude.toFixed(6)}, 経度 ${userLongitude.toFixed(6)}`;
-            searchShops();     
+            searchShops();
             document.getElementById("location-map").innerHTML = `<iframe
             src="https://www.google.com/maps?q=${userLatitude.toFixed(6)},${userLongitude.toFixed(6)}&hl=ja&z=17&t=h&output=embed"
             width="600"
@@ -347,4 +371,5 @@ let selectedGenreName ="";
     };
   </script>
 </body>
+
 </html>
